@@ -1,0 +1,7 @@
+<Solution>
+  <Project Path="MovieTicket.BLL/MovieTicket.BLL.csproj" Id="580338bb-9f31-4cec-8206-7375b030a5d3" />
+  <Project Path="MovieTicket.Common/MovieTicket.Common.csproj" Id="cc2443b7-f7c1-46f3-b268-7a9546095f46" />
+  <Project Path="MovieTicket.DAL/MovieTicket.DAL.csproj" Id="f944d3d2-af9e-4854-939e-06fa9ec76c21" />
+  <Project Path="MovieTicket.DTO/MovieTicket.DTO.csproj" Id="8af39e02-c9fb-4c2e-aa21-97baa7c18ad1" />
+  <Project Path="MovieTicketManagement/MovieTicket.GUI.csproj" />
+</Solution>

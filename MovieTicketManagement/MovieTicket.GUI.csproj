@@ -1,0 +1,21 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="QRCoder" Version="1.7.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\MovieTicket.BLL\MovieTicket.BLL.csproj" />
+    <ProjectReference Include="..\MovieTicket.Common\MovieTicket.Common.csproj" />
+    <ProjectReference Include="..\MovieTicket.DTO\MovieTicket.DTO.csproj" />
+  </ItemGroup>
+
+</Project>
