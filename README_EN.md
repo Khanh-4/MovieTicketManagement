@@ -220,10 +220,10 @@ VALUES (1, 1, '2025-01-01 19:00', '2025-01-01 21:00', 80000, 1)
 
 ## 👨‍💻 Author
 
-- **Name:** [Your Name]
-- **Student ID:** [Your Student ID]
-- **Class:** [Your Class]
-- **University:** [Your University]
+- **Name:** [Cao Duy Quốc Khánh]
+- **Student ID:** [2380601019]
+- **Class:** [23DTHC1]
+- **University:** [Trường Đại Học Công Nghệ Thành phố Hồ Chí Minh - HUTECH]
 
 ---
 
