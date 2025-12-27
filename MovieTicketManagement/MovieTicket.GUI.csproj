@@ -10,6 +10,7 @@
 
   <ItemGroup>
     <PackageReference Include="QRCoder" Version="1.7.0" />
+    <PackageReference Include="System.Configuration.ConfigurationManager" Version="10.0.0" />
   </ItemGroup>
 
   <ItemGroup>

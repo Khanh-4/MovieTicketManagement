@@ -1,5 +1,6 @@
 ﻿using MovieTicket.BLL;
 using MovieTicket.DTO;
+using MovieTicket.GUI;
 using System;
 using System.Windows.Forms;
 
@@ -131,6 +132,20 @@ namespace MovieTicketManagement
             catch (Exception ex)
             {
                 MessageBox.Show($"Lỗi: {ex.Message}", "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        // ============================================
+        // MỚI: Xử lý click vào link Quên mật khẩu
+        // ============================================
+        private void lnkForgotPassword_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
+        {
+            using (frmForgotPassword frm = new frmForgotPassword())
+            {
+                this.Hide(); // Ẩn form login
+                frm.ShowDialog();
+                this.Show(); // Hiện lại form login
+                txtUsername.Focus();
             }
         }
     }

@@ -39,6 +39,7 @@
             lblStatus = new Label();
             btnResetPW = new Button();
             chkShowPassword = new CheckBox();
+            lnkForgotPassword = new LinkLabel();  // MỚI
             SuspendLayout();
             // 
             // lblTitle
@@ -88,7 +89,7 @@
             // 
             // btnLogin
             // 
-            btnLogin.Location = new Point(12, 250);
+            btnLogin.Location = new Point(12, 280);
             btnLogin.Name = "btnLogin";
             btnLogin.Size = new Size(75, 23);
             btnLogin.TabIndex = 6;
@@ -98,7 +99,7 @@
             // 
             // btnRegister
             // 
-            btnRegister.Location = new Point(93, 250);
+            btnRegister.Location = new Point(93, 280);
             btnRegister.Name = "btnRegister";
             btnRegister.Size = new Size(75, 23);
             btnRegister.TabIndex = 7;
@@ -108,7 +109,7 @@
             // 
             // btnExit
             // 
-            btnExit.Location = new Point(179, 250);
+            btnExit.Location = new Point(179, 280);
             btnExit.Name = "btnExit";
             btnExit.Size = new Size(75, 23);
             btnExit.TabIndex = 8;
@@ -120,14 +121,14 @@
             // 
             lblStatus.AutoSize = true;
             lblStatus.ForeColor = Color.Red;
-            lblStatus.Location = new Point(15, 290);
+            lblStatus.Location = new Point(15, 320);
             lblStatus.Name = "lblStatus";
             lblStatus.Size = new Size(0, 15);
             lblStatus.TabIndex = 9;
             // 
             // btnResetPW
             // 
-            btnResetPW.Location = new Point(260, 250);
+            btnResetPW.Location = new Point(260, 280);
             btnResetPW.Name = "btnResetPW";
             btnResetPW.Size = new Size(75, 23);
             btnResetPW.TabIndex = 10;
@@ -146,12 +147,26 @@
             chkShowPassword.UseVisualStyleBackColor = true;
             chkShowPassword.CheckedChanged += chkShowPassword_CheckedChanged;
             // 
+            // lnkForgotPassword (MỚI)
+            // 
+            lnkForgotPassword.AutoSize = true;
+            lnkForgotPassword.Font = new Font("Segoe UI", 9.75F, FontStyle.Regular, GraphicsUnit.Point, 0);
+            lnkForgotPassword.LinkColor = Color.Blue;
+            lnkForgotPassword.Location = new Point(15, 220);
+            lnkForgotPassword.Name = "lnkForgotPassword";
+            lnkForgotPassword.Size = new Size(103, 17);
+            lnkForgotPassword.TabIndex = 11;
+            lnkForgotPassword.TabStop = true;
+            lnkForgotPassword.Text = "Quên mật khẩu?";
+            lnkForgotPassword.LinkClicked += lnkForgotPassword_LinkClicked;
+            // 
             // frmLogin
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
             BackColor = Color.Gainsboro;
-            ClientSize = new Size(434, 320);
+            ClientSize = new Size(434, 350);
+            Controls.Add(lnkForgotPassword);  // MỚI
             Controls.Add(chkShowPassword);
             Controls.Add(btnResetPW);
             Controls.Add(lblStatus);
@@ -186,5 +201,6 @@
         private Label lblStatus;
         private Button btnResetPW;
         private CheckBox chkShowPassword;
+        private LinkLabel lnkForgotPassword;  // MỚI
     }
 }

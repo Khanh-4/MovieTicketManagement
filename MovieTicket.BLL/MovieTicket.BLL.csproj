@@ -7,6 +7,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="System.Configuration.ConfigurationManager" Version="10.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\MovieTicket.Common\MovieTicket.Common.csproj" />
     <ProjectReference Include="..\MovieTicket.DAL\MovieTicket.DAL.csproj" />
     <ProjectReference Include="..\MovieTicket.DTO\MovieTicket.DTO.csproj" />
