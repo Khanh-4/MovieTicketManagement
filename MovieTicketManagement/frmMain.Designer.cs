@@ -49,6 +49,10 @@
             mnuDatVeOnline = new ToolStripMenuItem();
             mnuLichSuDatVe = new ToolStripMenuItem();
             mnuHoiVien = new ToolStripMenuItem();
+            toolStripSeparator2 = new ToolStripSeparator();
+            mnuPassVe = new ToolStripMenuItem();
+            mnuMuaVePass = new ToolStripMenuItem();
+            mnuViTien = new ToolStripMenuItem();
             mnuBaoCao = new ToolStripMenuItem();
             mnuDoanhThu = new ToolStripMenuItem();
             mnuThongKe = new ToolStripMenuItem();
@@ -174,7 +178,7 @@
             // 
             // mnuKhachHang
             // 
-            mnuKhachHang.DropDownItems.AddRange(new ToolStripItem[] { mnuDatVeOnline, mnuLichSuDatVe, mnuHoiVien });
+            mnuKhachHang.DropDownItems.AddRange(new ToolStripItem[] { mnuDatVeOnline, mnuLichSuDatVe, mnuHoiVien, toolStripSeparator2, mnuPassVe, mnuMuaVePass, mnuViTien });
             mnuKhachHang.Name = "mnuKhachHang";
             mnuKhachHang.Size = new Size(145, 20);
             mnuKhachHang.Text = "Khách hàng (Customer)";
@@ -182,23 +186,49 @@
             // mnuDatVeOnline
             // 
             mnuDatVeOnline.Name = "mnuDatVeOnline";
-            mnuDatVeOnline.Size = new Size(145, 22);
+            mnuDatVeOnline.Size = new Size(180, 22);
             mnuDatVeOnline.Text = "Đặt vé online";
             mnuDatVeOnline.Click += mnuDatVeOnline_Click;
             // 
             // mnuLichSuDatVe
             // 
             mnuLichSuDatVe.Name = "mnuLichSuDatVe";
-            mnuLichSuDatVe.Size = new Size(145, 22);
+            mnuLichSuDatVe.Size = new Size(180, 22);
             mnuLichSuDatVe.Text = "Lịch sử đặt vé";
             mnuLichSuDatVe.Click += mnuLichSuDatVe_Click;
             // 
             // mnuHoiVien
             // 
             mnuHoiVien.Name = "mnuHoiVien";
-            mnuHoiVien.Size = new Size(145, 22);
+            mnuHoiVien.Size = new Size(180, 22);
             mnuHoiVien.Text = "Hội viên";
             mnuHoiVien.Click += mnuHoiVien_Click;
+            // 
+            // toolStripSeparator2
+            // 
+            toolStripSeparator2.Name = "toolStripSeparator2";
+            toolStripSeparator2.Size = new Size(177, 6);
+            // 
+            // mnuPassVe
+            // 
+            mnuPassVe.Name = "mnuPassVe";
+            mnuPassVe.Size = new Size(180, 22);
+            mnuPassVe.Text = "🎫 Pass vé";
+            mnuPassVe.Click += mnuPassVe_Click;
+            // 
+            // mnuMuaVePass
+            // 
+            mnuMuaVePass.Name = "mnuMuaVePass";
+            mnuMuaVePass.Size = new Size(180, 22);
+            mnuMuaVePass.Text = "🏷️ Mua vé Pass";
+            mnuMuaVePass.Click += mnuMuaVePass_Click;
+            // 
+            // mnuViTien
+            // 
+            mnuViTien.Name = "mnuViTien";
+            mnuViTien.Size = new Size(180, 22);
+            mnuViTien.Text = "💰 Ví tiền";
+            mnuViTien.Click += mnuViTien_Click;
             // 
             // mnuBaoCao
             // 
@@ -295,6 +325,10 @@
         private ToolStripMenuItem mnuDatVeOnline;
         private ToolStripMenuItem mnuLichSuDatVe;
         private ToolStripMenuItem mnuHoiVien;
+        private ToolStripSeparator toolStripSeparator2;
+        private ToolStripMenuItem mnuPassVe;
+        private ToolStripMenuItem mnuMuaVePass;
+        private ToolStripMenuItem mnuViTien;
         private ToolStripMenuItem mnuBaoCao;
         private ToolStripMenuItem mnuDoanhThu;
         private ToolStripMenuItem mnuThongKe;

@@ -30,6 +30,55 @@ namespace MovieTicket.DAL
             return foods;
         }
 
+        // === MỚI: Lấy tất cả đồ ăn đang bán (IsActive = 1) ===
+        public List<FoodDTO> GetAllActive()
+        {
+            List<FoodDTO> foods = new List<FoodDTO>();
+            string query = @"SELECT f.*, c.CategoryName 
+                            FROM FOODS f
+                            INNER JOIN FOOD_CATEGORIES c ON f.CategoryID = c.CategoryID
+                            WHERE f.IsActive = 1
+                            ORDER BY c.CategoryName, f.FoodName";
+
+            using (SqlConnection conn = DatabaseConnection.GetConnection())
+            {
+                SqlCommand cmd = new SqlCommand(query, conn);
+                conn.Open();
+                SqlDataReader reader = cmd.ExecuteReader();
+
+                while (reader.Read())
+                {
+                    foods.Add(MapToDTO(reader));
+                }
+            }
+            return foods;
+        }
+
+        // === MỚI: Lấy đồ ăn theo danh mục (chỉ lấy đang bán) ===
+        public List<FoodDTO> GetByCategory(int categoryId)
+        {
+            List<FoodDTO> foods = new List<FoodDTO>();
+            string query = @"SELECT f.*, c.CategoryName 
+                            FROM FOODS f
+                            INNER JOIN FOOD_CATEGORIES c ON f.CategoryID = c.CategoryID
+                            WHERE f.CategoryID = @CategoryID AND f.IsActive = 1
+                            ORDER BY f.FoodName";
+
+            using (SqlConnection conn = DatabaseConnection.GetConnection())
+            {
+                SqlCommand cmd = new SqlCommand(query, conn);
+                cmd.Parameters.AddWithValue("@CategoryID", categoryId);
+                conn.Open();
+                SqlDataReader reader = cmd.ExecuteReader();
+
+                while (reader.Read())
+                {
+                    foods.Add(MapToDTO(reader));
+                }
+            }
+            return foods;
+        }
+
         // Lấy đồ ăn theo ID
         public FoodDTO GetById(int foodId)
         {

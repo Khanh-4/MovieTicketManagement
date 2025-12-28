@@ -15,6 +15,18 @@ namespace MovieTicket.BLL
             return foodDAL.GetAll();
         }
 
+        // === MỚI: Lấy tất cả đồ ăn đang bán (IsActive = 1) ===
+        public List<FoodDTO> GetAllActive()
+        {
+            return foodDAL.GetAllActive();
+        }
+
+        // === MỚI: Lấy đồ ăn theo danh mục ===
+        public List<FoodDTO> GetByCategory(int categoryId)
+        {
+            return foodDAL.GetByCategory(categoryId);
+        }
+
         // Lấy đồ ăn theo ID
         public FoodDTO GetById(int foodId)
         {

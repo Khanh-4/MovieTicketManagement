@@ -1,6 +1,5 @@
 ﻿using MovieTicket.BLL;
 using MovieTicket.DTO;
-
 using System;
 using System.Collections.Generic;
 using System.Drawing;
@@ -13,12 +12,16 @@ namespace MovieTicketManagement
     {
         private readonly MovieBLL movieBLL = new MovieBLL();
         private readonly BookingBLL bookingBLL = new BookingBLL();
+        private readonly FoodBLL foodBLL = new FoodBLL();
 
         private UserDTO currentUser;
         private List<SeatDTO> allSeats = new List<SeatDTO>();
         private List<int> bookedSeatIds = new List<int>();
         private List<int> selectedSeatIds = new List<int>();
         private ShowtimeDTO selectedShowtime;
+
+        // === MỚI: Danh sách đồ ăn đã chọn ===
+        private List<SelectedFoodItem> selectedFoods = new List<SelectedFoodItem>();
 
         // Constructor nhận thông tin user
         public frmBooking(UserDTO user)
@@ -30,10 +33,12 @@ namespace MovieTicketManagement
         private void frmBooking_Load(object sender, EventArgs e)
         {
             LoadMovies();
+            LoadFoodCategories();  // MỚI
             ClearBookingInfo();
         }
 
-        // Load danh sách phim đang chiếu
+        #region Load Data
+
         // Load danh sách phim đang chiếu
         private void LoadMovies()
         {
@@ -57,34 +62,6 @@ namespace MovieTicketManagement
             }
         }
 
-        // Khi chọn phim
-        // Khi chọn phim
-        private void cboMovies_SelectedIndexChanged(object sender, EventArgs e)
-        {
-            if (cboMovies.SelectedIndex >= 0)
-            {
-                // Lấy movie từ SelectedItem thay vì SelectedValue
-                MovieDTO movie = cboMovies.SelectedItem as MovieDTO;
-
-                if (movie != null)
-                {
-                    LoadShowtimes(movie.MovieID);
-                    lblMovieValue.Text = movie.Title;
-                }
-
-                // Xóa sơ đồ ghế cũ
-                ClearSeats();
-                ClearBookingInfo();
-
-                // Giữ lại tên phim
-                if (movie != null)
-                {
-                    lblMovieValue.Text = movie.Title;
-                }
-            }
-        }
-
-        // Load suất chiếu theo phim
         // Load suất chiếu theo phim
         private void LoadShowtimes(int movieId)
         {
@@ -106,31 +83,6 @@ namespace MovieTicketManagement
             {
                 MessageBox.Show($"Lỗi khi tải suất chiếu: {ex.Message}", "Lỗi",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
-        }
-
-        // Khi chọn suất chiếu
-        // Khi chọn suất chiếu
-        private void cboShowtimes_SelectedIndexChanged(object sender, EventArgs e)
-        {
-            if (cboShowtimes.SelectedIndex >= 0)
-            {
-                // Lấy showtime từ SelectedItem
-                selectedShowtime = cboShowtimes.SelectedItem as ShowtimeDTO;
-
-                if (selectedShowtime != null)
-                {
-                    // Cập nhật thông tin
-                    lblTimeValue.Text = selectedShowtime.StartTime.ToString("dd/MM/yyyy HH:mm");
-                    lblRoomValue.Text = selectedShowtime.RoomName;
-
-                    // Load sơ đồ ghế
-                    LoadSeats(selectedShowtime.RoomID, selectedShowtime.ShowtimeID);
-                }
-
-                // Xóa ghế đã chọn
-                selectedSeatIds.Clear();
-                UpdateSelectedSeatsInfo();
             }
         }
 
@@ -166,7 +118,124 @@ namespace MovieTicketManagement
             }
         }
 
-        // Tạo các nút ghế
+        // === MỚI: Load danh mục đồ ăn ===
+        private void LoadFoodCategories()
+        {
+            try
+            {
+                var categories = foodBLL.GetAllCategories();
+
+                // Thêm option "Tất cả"
+                categories.Insert(0, new FoodCategoryDTO { CategoryID = 0, CategoryName = "-- Tất cả --" });
+
+                cboFoodCategory.DataSource = null;
+                cboFoodCategory.DisplayMember = "CategoryName";
+                cboFoodCategory.ValueMember = "CategoryID";
+                cboFoodCategory.DataSource = categories;
+                cboFoodCategory.SelectedIndex = 0;
+
+                LoadFoods(0); // Load tất cả đồ ăn
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Lỗi khi tải danh mục đồ ăn: {ex.Message}", "Lỗi",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        // === MỚI: Load đồ ăn theo danh mục ===
+        private void LoadFoods(int categoryId)
+        {
+            try
+            {
+                List<FoodDTO> foods;
+
+                if (categoryId == 0)
+                    foods = foodBLL.GetAllActive();
+                else
+                    foods = foodBLL.GetByCategory(categoryId);
+
+                dgvFoods.DataSource = null;
+                dgvFoods.DataSource = foods;
+
+                // Ẩn các cột không cần thiết
+                if (dgvFoods.Columns.Count > 0)
+                {
+                    dgvFoods.Columns["FoodID"].Visible = false;
+                    dgvFoods.Columns["CategoryID"].Visible = false;
+                    dgvFoods.Columns["ImageURL"].Visible = false;
+                    dgvFoods.Columns["Description"].Visible = false;
+                    dgvFoods.Columns["StockQuantity"].Visible = false;
+                    dgvFoods.Columns["IsActive"].Visible = false;
+                    dgvFoods.Columns["CategoryName"].Visible = false;
+
+                    dgvFoods.Columns["FoodName"].HeaderText = "Tên món";
+                    dgvFoods.Columns["FoodName"].Width = 150;
+                    dgvFoods.Columns["Price"].HeaderText = "Giá";
+                    dgvFoods.Columns["Price"].Width = 80;
+                    dgvFoods.Columns["Price"].DefaultCellStyle.Format = "N0";
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Lỗi khi tải đồ ăn: {ex.Message}", "Lỗi",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        #endregion
+
+        #region Seat Selection Events
+
+        // Khi chọn phim
+        private void cboMovies_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            if (cboMovies.SelectedIndex >= 0)
+            {
+                MovieDTO movie = cboMovies.SelectedItem as MovieDTO;
+
+                if (movie != null)
+                {
+                    LoadShowtimes(movie.MovieID);
+                    lblMovieValue.Text = movie.Title;
+                }
+
+                // Xóa sơ đồ ghế cũ
+                ClearSeats();
+                ClearBookingInfo();
+
+                if (movie != null)
+                {
+                    lblMovieValue.Text = movie.Title;
+                }
+            }
+        }
+
+        // Khi chọn suất chiếu
+        private void cboShowtimes_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            if (cboShowtimes.SelectedIndex >= 0)
+            {
+                selectedShowtime = cboShowtimes.SelectedItem as ShowtimeDTO;
+
+                if (selectedShowtime != null)
+                {
+                    lblTimeValue.Text = selectedShowtime.StartTime.ToString("dd/MM/yyyy HH:mm");
+                    lblRoomValue.Text = selectedShowtime.RoomName;
+
+                    LoadSeats(selectedShowtime.RoomID, selectedShowtime.ShowtimeID);
+                }
+
+                selectedSeatIds.Clear();
+                UpdateSelectedSeatsInfo();
+            }
+        }
+
+        #endregion
+
+        #region Create Seat Buttons
+
+        // Tạo các nút ghế với màu theo loại
         private void CreateSeatButtons()
         {
             // Nhóm ghế theo hàng
@@ -209,23 +278,29 @@ namespace MovieTicketManagement
                         Cursor = Cursors.Hand
                     };
 
-                    // Thiết lập màu theo trạng thái
+                    // Thiết lập màu theo trạng thái và loại ghế
                     if (bookedSeatIds.Contains(seat.SeatID))
                     {
-                        // Ghế đã đặt
+                        // Ghế đã đặt - ĐỎ
                         btnSeat.BackColor = Color.Red;
                         btnSeat.ForeColor = Color.White;
                         btnSeat.Enabled = false;
                     }
-                    else if (seat.TypeName == "VIP" || seat.SeatTypeID == 2)
+                    else if (seat.SeatTypeID == 3 || seat.TypeName == "Couple")
                     {
-                        // Ghế VIP
+                        // Ghế COUPLE - TÍM
+                        btnSeat.BackColor = Color.MediumOrchid;
+                        btnSeat.ForeColor = Color.White;
+                    }
+                    else if (seat.SeatTypeID == 2 || seat.TypeName == "VIP")
+                    {
+                        // Ghế VIP - VÀNG
                         btnSeat.BackColor = Color.Gold;
                         btnSeat.ForeColor = Color.Black;
                     }
                     else
                     {
-                        // Ghế thường
+                        // Ghế thường - TRẮNG
                         btnSeat.BackColor = Color.White;
                         btnSeat.ForeColor = Color.Black;
                     }
@@ -240,7 +315,11 @@ namespace MovieTicketManagement
             }
         }
 
-        // Sự kiện click ghế
+        #endregion
+
+        #region Seat Click Handler with Validation
+
+        // Sự kiện click ghế - CÓ KIỂM TRA RÀNG BUỘC
         private void BtnSeat_Click(object sender, EventArgs e)
         {
             Button btn = sender as Button;
@@ -249,24 +328,45 @@ namespace MovieTicketManagement
             SeatDTO seat = btn.Tag as SeatDTO;
             if (seat == null) return;
 
+            // === XỬ LÝ GHẾ COUPLE ===
+            if (seat.IsCoupleSeat && seat.CoupleGroupID.HasValue)
+            {
+                HandleCoupleSeatClick(seat);
+                return;
+            }
+
+            // === XỬ LÝ GHẾ THƯỜNG/VIP ===
             if (selectedSeatIds.Contains(seat.SeatID))
             {
+                // BỎ CHỌN GHẾ
+                // Kiểm tra nếu bỏ chọn sẽ tạo ra lỗ hổng 1 ghế
+                if (!CanDeselectSeat(seat))
+                {
+                    MessageBox.Show(
+                        "Không thể bỏ chọn ghế này!\n\n" +
+                        "Lý do: Sẽ tạo ra ghế trống đơn lẻ giữa các ghế đã chọn.\n" +
+                        "Vui lòng bỏ chọn các ghế bên cạnh trước.",
+                        "Không hợp lệ",
+                        MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+
                 // Bỏ chọn ghế - trả về màu gốc
                 selectedSeatIds.Remove(seat.SeatID);
-
-                if (seat.TypeName == "VIP" || seat.SeatTypeID == 2)
-                {
-                    btn.BackColor = Color.Gold;
-                    btn.ForeColor = Color.Black;
-                }
-                else
-                {
-                    btn.BackColor = Color.White;
-                    btn.ForeColor = Color.Black;
-                }
+                ResetSeatColor(btn, seat);
             }
             else
             {
+                // CHỌN GHẾ MỚI
+                // Kiểm tra quy tắc chọn ghế
+                string validationError = ValidateSeatSelection(seat);
+                if (!string.IsNullOrEmpty(validationError))
+                {
+                    MessageBox.Show(validationError, "Không hợp lệ",
+                        MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+
                 // Chọn ghế
                 selectedSeatIds.Add(seat.SeatID);
                 btn.BackColor = Color.DodgerBlue;
@@ -276,31 +376,393 @@ namespace MovieTicketManagement
             UpdateSelectedSeatsInfo();
         }
 
+        // === MỚI: Xử lý click ghế Couple (chọn cả cặp) ===
+        private void HandleCoupleSeatClick(SeatDTO clickedSeat)
+        {
+            // Tìm ghế còn lại trong cặp
+            var coupleSeats = allSeats
+                .Where(s => s.CoupleGroupID == clickedSeat.CoupleGroupID)
+                .ToList();
+
+            if (coupleSeats.Count != 2)
+            {
+                MessageBox.Show("Lỗi dữ liệu ghế Couple!", "Lỗi",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
+
+            // Kiểm tra xem cặp ghế đã được chọn chưa
+            bool isSelected = selectedSeatIds.Contains(clickedSeat.SeatID);
+
+            if (isSelected)
+            {
+                // BỎ CHỌN CẢ CẶP
+                foreach (var seat in coupleSeats)
+                {
+                    if (selectedSeatIds.Contains(seat.SeatID))
+                    {
+                        selectedSeatIds.Remove(seat.SeatID);
+
+                        Button btn = pnlSeats.Controls.Find($"btnSeat_{seat.SeatID}", false).FirstOrDefault() as Button;
+                        if (btn != null)
+                        {
+                            btn.BackColor = Color.MediumOrchid;
+                            btn.ForeColor = Color.White;
+                        }
+                    }
+                }
+            }
+            else
+            {
+                // CHỌN CẢ CẶP
+                // Kiểm tra xem có ghế nào trong cặp đã được đặt chưa
+                foreach (var seat in coupleSeats)
+                {
+                    if (bookedSeatIds.Contains(seat.SeatID))
+                    {
+                        MessageBox.Show(
+                            $"Ghế {seat.DisplaySeatCode} trong cặp đã được đặt!\n" +
+                            "Vui lòng chọn cặp ghế khác.",
+                            "Ghế đã đặt",
+                            MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                        return;
+                    }
+                }
+
+                // Chọn cả cặp
+                foreach (var seat in coupleSeats)
+                {
+                    if (!selectedSeatIds.Contains(seat.SeatID))
+                    {
+                        selectedSeatIds.Add(seat.SeatID);
+
+                        Button btn = pnlSeats.Controls.Find($"btnSeat_{seat.SeatID}", false).FirstOrDefault() as Button;
+                        if (btn != null)
+                        {
+                            btn.BackColor = Color.DodgerBlue;
+                            btn.ForeColor = Color.White;
+                        }
+                    }
+                }
+            }
+
+            UpdateSelectedSeatsInfo();
+        }
+
+        #endregion
+
+        #region Seat Validation Rules
+
+        /// <summary>
+        /// Kiểm tra quy tắc khi chọn ghế mới
+        /// </summary>
+        /// <returns>Chuỗi lỗi nếu không hợp lệ, null nếu hợp lệ</returns>
+        private string ValidateSeatSelection(SeatDTO newSeat)
+        {
+            // Nếu chưa có ghế nào được chọn -> OK
+            if (selectedSeatIds.Count == 0)
+                return null;
+
+            // Lấy danh sách ghế cùng hàng
+            var seatsInSameRow = allSeats
+                .Where(s => s.RowNumber == newSeat.RowNumber)
+                .OrderBy(s => s.SeatNumber)
+                .ToList();
+
+            // Lấy danh sách ghế đã chọn trong cùng hàng
+            var selectedSeatsInRow = seatsInSameRow
+                .Where(s => selectedSeatIds.Contains(s.SeatID))
+                .ToList();
+
+            // === QUY TẮC 1: Kiểm tra ghế liên tiếp ===
+            // Nếu đã có ghế được chọn trong hàng này, ghế mới phải liền kề
+            if (selectedSeatsInRow.Count > 0)
+            {
+                int minSeatNum = selectedSeatsInRow.Min(s => s.SeatNumber);
+                int maxSeatNum = selectedSeatsInRow.Max(s => s.SeatNumber);
+
+                // Ghế mới phải ở vị trí minSeatNum - 1 hoặc maxSeatNum + 1
+                if (newSeat.SeatNumber != minSeatNum - 1 && newSeat.SeatNumber != maxSeatNum + 1)
+                {
+                    return "Các ghế phải được chọn liền kề nhau!\n\n" +
+                           $"Bạn đã chọn ghế từ {newSeat.RowNumber}{minSeatNum} đến {newSeat.RowNumber}{maxSeatNum}.\n" +
+                           $"Vui lòng chọn ghế {newSeat.RowNumber}{minSeatNum - 1} hoặc {newSeat.RowNumber}{maxSeatNum + 1}.";
+                }
+            }
+
+            // === QUY TẮC 2: Kiểm tra không để trống 1 ghế (Single Gap Rule) ===
+            // Tạo danh sách tạm bao gồm ghế mới
+            var tempSelectedIds = new List<int>(selectedSeatIds) { newSeat.SeatID };
+
+            // Kiểm tra lỗ hổng trong hàng
+            string gapError = CheckSingleGapInRow(newSeat.RowNumber, tempSelectedIds);
+            if (!string.IsNullOrEmpty(gapError))
+                return gapError;
+
+            return null; // Hợp lệ
+        }
+
+        /// <summary>
+        /// Kiểm tra có để trống 1 ghế đơn lẻ trong hàng không
+        /// </summary>
+        private string CheckSingleGapInRow(string rowNumber, List<int> selectedIds)
+        {
+            var seatsInRow = allSeats
+                .Where(s => s.RowNumber == rowNumber)
+                .OrderBy(s => s.SeatNumber)
+                .ToList();
+
+            for (int i = 0; i < seatsInRow.Count; i++)
+            {
+                var currentSeat = seatsInRow[i];
+
+                // Bỏ qua nếu ghế đã được đặt hoặc đang được chọn
+                if (bookedSeatIds.Contains(currentSeat.SeatID) || selectedIds.Contains(currentSeat.SeatID))
+                    continue;
+
+                // Kiểm tra ghế bên trái
+                bool hasLeftOccupied = false;
+                if (i > 0)
+                {
+                    var leftSeat = seatsInRow[i - 1];
+                    hasLeftOccupied = bookedSeatIds.Contains(leftSeat.SeatID) || selectedIds.Contains(leftSeat.SeatID);
+                }
+                else
+                {
+                    // Ghế sát tường trái
+                    hasLeftOccupied = true;
+                }
+
+                // Kiểm tra ghế bên phải
+                bool hasRightOccupied = false;
+                if (i < seatsInRow.Count - 1)
+                {
+                    var rightSeat = seatsInRow[i + 1];
+                    hasRightOccupied = bookedSeatIds.Contains(rightSeat.SeatID) || selectedIds.Contains(rightSeat.SeatID);
+                }
+                else
+                {
+                    // Ghế sát tường phải
+                    hasRightOccupied = true;
+                }
+
+                // Nếu ghế trống bị kẹp giữa 2 ghế đã chiếm -> Lỗ hổng đơn
+                if (hasLeftOccupied && hasRightOccupied)
+                {
+                    return $"Không thể chọn ghế này!\n\n" +
+                           $"Lý do: Sẽ để lại ghế {currentSeat.DisplaySeatCode} trống đơn lẻ.\n" +
+                           $"Quy định: Không được để trống 1 ghế giữa các ghế đã đặt.\n\n" +
+                           $"Gợi ý: Hãy chọn thêm ghế {currentSeat.DisplaySeatCode} hoặc chọn vị trí khác.";
+                }
+            }
+
+            return null; // Không có lỗ hổng
+        }
+
+        /// <summary>
+        /// Kiểm tra có thể bỏ chọn ghế không
+        /// </summary>
+        private bool CanDeselectSeat(SeatDTO seat)
+        {
+            // Tạo danh sách tạm không bao gồm ghế muốn bỏ
+            var tempSelectedIds = selectedSeatIds.Where(id => id != seat.SeatID).ToList();
+
+            // Nếu không còn ghế nào -> OK
+            if (tempSelectedIds.Count == 0)
+                return true;
+
+            // Kiểm tra ghế còn lại trong hàng có liên tiếp không
+            var selectedSeatsInRow = allSeats
+                .Where(s => s.RowNumber == seat.RowNumber && tempSelectedIds.Contains(s.SeatID))
+                .OrderBy(s => s.SeatNumber)
+                .ToList();
+
+            if (selectedSeatsInRow.Count <= 1)
+                return true;
+
+            // Kiểm tra có liên tiếp không
+            for (int i = 1; i < selectedSeatsInRow.Count; i++)
+            {
+                if (selectedSeatsInRow[i].SeatNumber - selectedSeatsInRow[i - 1].SeatNumber != 1)
+                    return false;
+            }
+
+            return true;
+        }
+
+        /// <summary>
+        /// Reset màu ghế về trạng thái ban đầu
+        /// </summary>
+        private void ResetSeatColor(Button btn, SeatDTO seat)
+        {
+            if (seat.SeatTypeID == 3 || seat.TypeName == "Couple")
+            {
+                btn.BackColor = Color.MediumOrchid;
+                btn.ForeColor = Color.White;
+            }
+            else if (seat.SeatTypeID == 2 || seat.TypeName == "VIP")
+            {
+                btn.BackColor = Color.Gold;
+                btn.ForeColor = Color.Black;
+            }
+            else
+            {
+                btn.BackColor = Color.White;
+                btn.ForeColor = Color.Black;
+            }
+        }
+
+        #endregion
+
+        #region Food Selection
+
+        // === MỚI: Khi chọn danh mục đồ ăn ===
+        private void cboFoodCategory_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            if (cboFoodCategory.SelectedIndex >= 0)
+            {
+                var category = cboFoodCategory.SelectedItem as FoodCategoryDTO;
+                if (category != null)
+                {
+                    LoadFoods(category.CategoryID);
+                }
+            }
+        }
+
+        // === MỚI: Thêm đồ ăn vào giỏ ===
+        private void btnAddFood_Click(object sender, EventArgs e)
+        {
+            if (dgvFoods.CurrentRow == null)
+            {
+                MessageBox.Show("Vui lòng chọn món ăn!", "Thông báo",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            var food = dgvFoods.CurrentRow.DataBoundItem as FoodDTO;
+            if (food == null) return;
+
+            int quantity = (int)nudQuantity.Value;
+            if (quantity <= 0)
+            {
+                MessageBox.Show("Số lượng phải lớn hơn 0!", "Thông báo",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            // Kiểm tra xem đã có trong giỏ chưa
+            var existingItem = selectedFoods.FirstOrDefault(f => f.FoodID == food.FoodID);
+            if (existingItem != null)
+            {
+                // Cộng thêm số lượng
+                existingItem.Quantity += quantity;
+            }
+            else
+            {
+                // Thêm mới
+                selectedFoods.Add(new SelectedFoodItem
+                {
+                    FoodID = food.FoodID,
+                    FoodName = food.FoodName,
+                    UnitPrice = food.Price,
+                    Quantity = quantity
+                });
+            }
+
+            RefreshFoodCart();
+            nudQuantity.Value = 1;
+        }
+
+        // === MỚI: Xóa đồ ăn khỏi giỏ ===
+        private void btnRemoveFood_Click(object sender, EventArgs e)
+        {
+            if (dgvSelectedFoods.CurrentRow == null)
+            {
+                MessageBox.Show("Vui lòng chọn món cần xóa!", "Thông báo",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            var item = dgvSelectedFoods.CurrentRow.DataBoundItem as SelectedFoodItem;
+            if (item != null)
+            {
+                selectedFoods.Remove(item);
+                RefreshFoodCart();
+            }
+        }
+
+        // === MỚI: Refresh giỏ đồ ăn ===
+        private void RefreshFoodCart()
+        {
+            dgvSelectedFoods.DataSource = null;
+            dgvSelectedFoods.DataSource = selectedFoods.ToList();
+
+            if (dgvSelectedFoods.Columns.Count > 0)
+            {
+                dgvSelectedFoods.Columns["FoodID"].Visible = false;
+                dgvSelectedFoods.Columns["UnitPrice"].Visible = false;
+                dgvSelectedFoods.Columns["TotalPrice"].Visible = false;
+
+                dgvSelectedFoods.Columns["FoodName"].HeaderText = "Món";
+                dgvSelectedFoods.Columns["FoodName"].Width = 120;
+                dgvSelectedFoods.Columns["Quantity"].HeaderText = "SL";
+                dgvSelectedFoods.Columns["Quantity"].Width = 40;
+                dgvSelectedFoods.Columns["DisplayUnitPrice"].HeaderText = "Đơn giá";
+                dgvSelectedFoods.Columns["DisplayUnitPrice"].Width = 70;
+                dgvSelectedFoods.Columns["DisplayTotal"].HeaderText = "Thành tiền";
+                dgvSelectedFoods.Columns["DisplayTotal"].Width = 80;
+            }
+
+            UpdateTotalAmount();
+        }
+
+        #endregion
+
+        #region Update Info
+
         // Cập nhật thông tin ghế đã chọn và tổng tiền
         private void UpdateSelectedSeatsInfo()
         {
             if (selectedSeatIds.Count == 0)
             {
                 lblSeatsValue.Text = "(Chưa chọn)";
-                lblPriceValue.Text = "0 VNĐ";
-                return;
+            }
+            else
+            {
+                var selectedSeats = allSeats.Where(s => selectedSeatIds.Contains(s.SeatID)).ToList();
+                string seatCodes = string.Join(", ", selectedSeats.Select(s => s.DisplaySeatCode));
+                lblSeatsValue.Text = seatCodes;
             }
 
-            // Lấy danh sách mã ghế đã chọn
-            var selectedSeats = allSeats.Where(s => selectedSeatIds.Contains(s.SeatID)).ToList();
-            string seatCodes = string.Join(", ", selectedSeats.Select(s => s.DisplaySeatCode));
-            lblSeatsValue.Text = seatCodes;
+            UpdateTotalAmount();
+        }
 
-            // Tính tổng tiền
-            if (selectedShowtime != null)
+        // === MỚI: Cập nhật tổng tiền (vé + đồ ăn) ===
+        private void UpdateTotalAmount()
+        {
+            decimal ticketTotal = 0;
+            decimal foodTotal = 0;
+
+            // Tính tiền vé
+            if (selectedShowtime != null && selectedSeatIds.Count > 0)
             {
-                decimal total = 0;
+                var selectedSeats = allSeats.Where(s => selectedSeatIds.Contains(s.SeatID));
                 foreach (var seat in selectedSeats)
                 {
-                    total += selectedShowtime.BasePrice * seat.PriceMultiplier;
+                    ticketTotal += selectedShowtime.BasePrice * seat.PriceMultiplier;
                 }
-                lblPriceValue.Text = string.Format("{0:N0} VNĐ", total);
             }
+
+            // Tính tiền đồ ăn
+            foodTotal = selectedFoods.Sum(f => f.TotalPrice);
+
+            // Hiển thị
+            lblTicketPrice.Text = string.Format("{0:N0} đ", ticketTotal);
+            lblFoodPrice.Text = string.Format("{0:N0} đ", foodTotal);
+            lblTotalPrice.Text = string.Format("{0:N0} đ", ticketTotal + foodTotal);
+
+            // Cập nhật lblPriceValue (nếu còn dùng)
+            lblPriceValue.Text = string.Format("{0:N0} VNĐ", ticketTotal + foodTotal);
         }
 
         // Xóa sơ đồ ghế
@@ -320,8 +782,17 @@ namespace MovieTicketManagement
             lblRoomValue.Text = "";
             lblSeatsValue.Text = "(Chưa chọn)";
             lblPriceValue.Text = "0 VNĐ";
+            lblTicketPrice.Text = "0 đ";
+            lblFoodPrice.Text = "0 đ";
+            lblTotalPrice.Text = "0 đ";
             selectedShowtime = null;
+            selectedFoods.Clear();
+            RefreshFoodCart();
         }
+
+        #endregion
+
+        #region Booking Actions
 
         // Nút Đặt vé
         private void btnBooking_Click(object sender, EventArgs e)
@@ -348,19 +819,32 @@ namespace MovieTicketManagement
                 return;
             }
 
+            // Tính tổng tiền
+            decimal ticketTotal = 0;
+            var selectedSeats = allSeats.Where(s => selectedSeatIds.Contains(s.SeatID));
+            foreach (var seat in selectedSeats)
+            {
+                ticketTotal += selectedShowtime.BasePrice * seat.PriceMultiplier;
+            }
+            decimal foodTotal = selectedFoods.Sum(f => f.TotalPrice);
+            decimal grandTotal = ticketTotal + foodTotal;
+
             // Xác nhận đặt vé
-            string movieName = lblMovieValue.Text;
-            string showtime = lblTimeValue.Text;
-            string room = lblRoomValue.Text;
-            string seats = lblSeatsValue.Text;
-            string price = lblPriceValue.Text;
+            string foodList = selectedFoods.Count > 0
+                ? string.Join("\n", selectedFoods.Select(f => $"  - {f.FoodName} x{f.Quantity}: {f.DisplayTotal}"))
+                : "  (Không có)";
 
             string confirmMessage = $"Xác nhận đặt vé:\n\n" +
-                                   $"Phim: {movieName}\n" +
-                                   $"Suất chiếu: {showtime}\n" +
-                                   $"Phòng: {room}\n" +
-                                   $"Ghế: {seats}\n" +
-                                   $"Tổng tiền: {price}\n\n" +
+                                   $"Phim: {lblMovieValue.Text}\n" +
+                                   $"Suất chiếu: {lblTimeValue.Text}\n" +
+                                   $"Phòng: {lblRoomValue.Text}\n" +
+                                   $"Ghế: {lblSeatsValue.Text}\n" +
+                                   $"Tiền vé: {ticketTotal:N0} đ\n\n" +
+                                   $"Đồ ăn/thức uống:\n{foodList}\n" +
+                                   $"Tiền đồ ăn: {foodTotal:N0} đ\n\n" +
+                                   $"═══════════════════\n" +
+                                   $"TỔNG CỘNG: {grandTotal:N0} đ\n" +
+                                   $"═══════════════════\n\n" +
                                    $"Bạn có chắc muốn đặt vé?";
 
             DialogResult result = MessageBox.Show(confirmMessage, "Xác nhận đặt vé",
@@ -370,16 +854,13 @@ namespace MovieTicketManagement
             {
                 try
                 {
-                    // Tính tổng tiền
-                    decimal totalAmount = bookingBLL.CalculateTotalAmount(
-                        selectedShowtime.ShowtimeID, selectedSeatIds);
-
-                    // Tạo booking
-                    var bookingResult = bookingBLL.CreateBooking(
+                    // Tạo booking VỚI đồ ăn
+                    var bookingResult = bookingBLL.CreateBookingWithFoods(
                         currentUser.UserID,
                         selectedShowtime.ShowtimeID,
                         selectedSeatIds,
-                        totalAmount);
+                        ticketTotal,
+                        selectedFoods);
 
                     if (bookingResult.success)
                     {
@@ -399,6 +880,8 @@ namespace MovieTicketManagement
                         // Reload sơ đồ ghế
                         LoadSeats(selectedShowtime.RoomID, selectedShowtime.ShowtimeID);
                         selectedSeatIds.Clear();
+                        selectedFoods.Clear();
+                        RefreshFoodCart();
                         UpdateSelectedSeatsInfo();
                     }
                     else
@@ -427,11 +910,7 @@ namespace MovieTicketManagement
                     SeatDTO seat = btn.Tag as SeatDTO;
                     if (seat != null)
                     {
-                        if (seat.TypeName == "VIP" || seat.SeatTypeID == 2)
-                            btn.BackColor = Color.Gold;
-                        else
-                            btn.BackColor = Color.White;
-                        btn.ForeColor = Color.Black;
+                        ResetSeatColor(btn, seat);
                     }
                 }
             }
@@ -445,5 +924,7 @@ namespace MovieTicketManagement
         {
             this.Close();
         }
+
+        #endregion
     }
 }

@@ -66,7 +66,7 @@ namespace MovieTicketManagement
                     mnuQuanLy.Visible = true;
                     mnuBanVe.Visible = true;
                     mnuQLStaff.Visible = false;
-                    mnuQLKhuyenMai.Visible = false; // Staff không được quản lý khuyến mãi
+                    mnuQLKhuyenMai.Visible = false;
                     break;
 
                 case 3: // Customer
@@ -159,7 +159,6 @@ namespace MovieTicketManagement
             frm.ShowDialog();
         }
 
-        // Menu Lịch sử đặt vé (cho Customer)
         private void mnuLichSuDatVe_Click(object sender, EventArgs e)
         {
             frmBookingHistory frm = new frmBookingHistory(currentUser);
@@ -181,6 +180,31 @@ namespace MovieTicketManagement
         private void mnuThongKe_Click(object sender, EventArgs e)
         {
             frmStatistics frm = new frmStatistics();
+            frm.ShowDialog();
+        }
+
+        // ============================================
+        // MENU PASS VÉ (MỚI)
+        // ============================================
+
+        // Pass vé cho rạp
+        private void mnuPassVe_Click(object sender, EventArgs e)
+        {
+            frmPassTicket frm = new frmPassTicket(currentUser);
+            frm.ShowDialog();
+        }
+
+        // Mua vé pass (giảm giá)
+        private void mnuMuaVePass_Click(object sender, EventArgs e)
+        {
+            frmResaleTickets frm = new frmResaleTickets(currentUser);
+            frm.ShowDialog();
+        }
+
+        // Ví tiền
+        private void mnuViTien_Click(object sender, EventArgs e)
+        {
+            frmWallet frm = new frmWallet(currentUser);
             frm.ShowDialog();
         }
     }

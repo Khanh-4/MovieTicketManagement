@@ -41,9 +41,20 @@ namespace MovieTicket.BLL
             return seatDAL.GetBookedSeatIds(showtimeId);
         }
 
-        // Đặt vé
+        // Đặt vé (KHÔNG CÓ ĐỒ ĂN - giữ lại để tương thích code cũ)
         public (bool success, string message, int bookingId) CreateBooking(int userId, int showtimeId,
             List<int> seatIds, decimal totalAmount)
+        {
+            return CreateBookingWithFoods(userId, showtimeId, seatIds, totalAmount, null);
+        }
+
+        // === MỚI: Đặt vé CÓ ĐỒ ĂN ===
+        public (bool success, string message, int bookingId) CreateBookingWithFoods(
+            int userId,
+            int showtimeId,
+            List<int> seatIds,
+            decimal ticketAmount,
+            List<SelectedFoodItem> foods)
         {
             // Validate
             if (seatIds == null || seatIds.Count == 0)
@@ -57,6 +68,19 @@ namespace MovieTicket.BLL
                     return (false, "Một số ghế đã được đặt. Vui lòng chọn ghế khác!", 0);
             }
 
+            // Tính tổng tiền đồ ăn
+            decimal foodAmount = 0;
+            if (foods != null)
+            {
+                foreach (var food in foods)
+                {
+                    foodAmount += food.TotalPrice;
+                }
+            }
+
+            // Tổng tiền = Tiền vé + Tiền đồ ăn
+            decimal totalAmount = ticketAmount + foodAmount;
+
             // Tạo booking
             BookingDTO booking = new BookingDTO
             {
@@ -64,7 +88,7 @@ namespace MovieTicket.BLL
                 UserID = userId,
                 ShowtimeID = showtimeId,
                 TotalAmount = totalAmount,
-                BookingStatus = "Confirmed",  // ✅ Đúng theo CHECK constraint
+                BookingStatus = "Confirmed",
                 PaymentStatus = "Đã thanh toán",
                 PaymentMethod = "Tiền mặt",
                 BookingTime = DateTime.Now
@@ -74,7 +98,7 @@ namespace MovieTicket.BLL
 
             if (bookingId > 0)
             {
-                // Lấy thông tin suất chiếu để tính giá
+                // Lấy thông tin suất chiếu để tính giá ghế
                 ShowtimeDTO showtime = showtimeDAL.GetById(showtimeId);
 
                 // Thêm chi tiết booking (các ghế)
@@ -83,6 +107,15 @@ namespace MovieTicket.BLL
                     SeatDTO seat = seatDAL.GetById(seatId);
                     decimal seatPrice = showtime.BasePrice * seat.PriceMultiplier;
                     bookingDAL.InsertBookingDetail(bookingId, seatId, seatPrice);
+                }
+
+                // === MỚI: Thêm đồ ăn vào booking ===
+                if (foods != null && foods.Count > 0)
+                {
+                    foreach (var food in foods)
+                    {
+                        bookingDAL.InsertBookingFood(bookingId, food.FoodID, food.Quantity, food.UnitPrice);
+                    }
                 }
 
                 return (true, $"Đặt vé thành công! Mã đặt vé: {booking.BookingCode}", bookingId);
@@ -107,6 +140,12 @@ namespace MovieTicket.BLL
         public List<BookingDetailDTO> GetBookingDetails(int bookingId)
         {
             return bookingDAL.GetBookingDetails(bookingId);
+        }
+
+        // === MỚI: Lấy danh sách đồ ăn của booking ===
+        public List<TicketFoodItem> GetBookingFoods(int bookingId)
+        {
+            return bookingDAL.GetBookingFoods(bookingId);
         }
 
         // Tính tổng tiền
@@ -150,6 +189,12 @@ namespace MovieTicket.BLL
         public bool MarkAsUsed(int bookingId)
         {
             return bookingDAL.MarkAsUsed(bookingId);
+        }
+
+        // Lấy danh sách booking của user
+        public List<BookingDTO> GetByUserId(int userId)
+        {
+            return bookingDAL.GetByUserId(userId);
         }
 
     }

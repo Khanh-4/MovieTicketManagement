@@ -23,7 +23,7 @@ namespace MovieTicket.DAL
                 cmd.Parameters.AddWithValue("@UserID", booking.UserID);
                 cmd.Parameters.AddWithValue("@ShowtimeID", booking.ShowtimeID);
                 cmd.Parameters.AddWithValue("@TotalAmount", booking.TotalAmount);
-                cmd.Parameters.AddWithValue("@FinalAmount", booking.TotalAmount); // FinalAmount = TotalAmount (chưa giảm giá)
+                cmd.Parameters.AddWithValue("@FinalAmount", booking.TotalAmount);
                 cmd.Parameters.AddWithValue("@BookingStatus", booking.BookingStatus);
                 cmd.Parameters.AddWithValue("@PaymentStatus", booking.PaymentStatus ?? "Đã thanh toán");
                 cmd.Parameters.AddWithValue("@PaymentMethod", (object)booking.PaymentMethod ?? DBNull.Value);
@@ -47,6 +47,44 @@ namespace MovieTicket.DAL
                 cmd.Parameters.AddWithValue("@BookingID", bookingId);
                 cmd.Parameters.AddWithValue("@SeatID", seatId);
                 cmd.Parameters.AddWithValue("@Price", price);
+
+                conn.Open();
+                return cmd.ExecuteNonQuery() > 0;
+            }
+        }
+
+        // === MỚI: Thêm đồ ăn vào booking ===
+        public bool InsertBookingFood(int bookingId, int foodId, int quantity, decimal unitPrice)
+        {
+            string query = @"INSERT INTO BOOKING_FOODS (BookingID, FoodID, Quantity, UnitPrice, TotalPrice)
+                            VALUES (@BookingID, @FoodID, @Quantity, @UnitPrice, @TotalPrice)";
+
+            using (SqlConnection conn = DatabaseConnection.GetConnection())
+            {
+                SqlCommand cmd = new SqlCommand(query, conn);
+                cmd.Parameters.AddWithValue("@BookingID", bookingId);
+                cmd.Parameters.AddWithValue("@FoodID", foodId);
+                cmd.Parameters.AddWithValue("@Quantity", quantity);
+                cmd.Parameters.AddWithValue("@UnitPrice", unitPrice);
+                cmd.Parameters.AddWithValue("@TotalPrice", unitPrice * quantity);
+
+                conn.Open();
+                return cmd.ExecuteNonQuery() > 0;
+            }
+        }
+
+        // === MỚI: Cập nhật tổng tiền booking (sau khi thêm đồ ăn) ===
+        public bool UpdateTotalAmount(int bookingId, decimal totalAmount)
+        {
+            string query = @"UPDATE BOOKINGS 
+                            SET TotalAmount = @TotalAmount, FinalAmount = @TotalAmount 
+                            WHERE BookingID = @BookingID";
+
+            using (SqlConnection conn = DatabaseConnection.GetConnection())
+            {
+                SqlCommand cmd = new SqlCommand(query, conn);
+                cmd.Parameters.AddWithValue("@BookingID", bookingId);
+                cmd.Parameters.AddWithValue("@TotalAmount", totalAmount);
 
                 conn.Open();
                 return cmd.ExecuteNonQuery() > 0;
@@ -150,6 +188,38 @@ namespace MovieTicket.DAL
             return details;
         }
 
+        // === MỚI: Lấy danh sách đồ ăn của booking ===
+        public List<TicketFoodItem> GetBookingFoods(int bookingId)
+        {
+            List<TicketFoodItem> foods = new List<TicketFoodItem>();
+            string query = @"SELECT bf.FoodID, f.FoodName, bf.Quantity, bf.UnitPrice, bf.TotalPrice
+                            FROM BOOKING_FOODS bf
+                            INNER JOIN FOODS f ON bf.FoodID = f.FoodID
+                            WHERE bf.BookingID = @BookingID";
+
+            using (SqlConnection conn = DatabaseConnection.GetConnection())
+            {
+                SqlCommand cmd = new SqlCommand(query, conn);
+                cmd.Parameters.AddWithValue("@BookingID", bookingId);
+
+                conn.Open();
+                SqlDataReader reader = cmd.ExecuteReader();
+
+                while (reader.Read())
+                {
+                    foods.Add(new TicketFoodItem
+                    {
+                        FoodID = Convert.ToInt32(reader["FoodID"]),
+                        FoodName = reader["FoodName"].ToString(),
+                        Quantity = Convert.ToInt32(reader["Quantity"]),
+                        UnitPrice = Convert.ToDecimal(reader["UnitPrice"]),
+                        TotalPrice = Convert.ToDecimal(reader["TotalPrice"])
+                    });
+                }
+            }
+            return foods;
+        }
+
         private BookingDTO MapToDTO(SqlDataReader reader)
         {
             var booking = new BookingDTO
@@ -169,7 +239,6 @@ namespace MovieTicket.DAL
                 ShowTime = Convert.ToDateTime(reader["StartTime"])
             };
 
-            // Kiểm tra cột IsUsed có tồn tại không
             try
             {
                 int isUsedOrdinal = reader.GetOrdinal("IsUsed");
@@ -177,7 +246,6 @@ namespace MovieTicket.DAL
             }
             catch { booking.IsUsed = false; }
 
-            // Kiểm tra cột UsedAt có tồn tại không
             try
             {
                 int usedAtOrdinal = reader.GetOrdinal("UsedAt");
@@ -206,7 +274,7 @@ namespace MovieTicket.DAL
             }
         }
 
-        // Kiểm tra có thể hủy vé không (trước giờ chiếu ít nhất 2 tiếng)
+        // Kiểm tra có thể hủy vé không
         public bool CanCancelBooking(int bookingId)
         {
             string query = @"SELECT s.StartTime, b.BookingStatus
@@ -227,7 +295,6 @@ namespace MovieTicket.DAL
                     DateTime startTime = Convert.ToDateTime(reader["StartTime"]);
                     string status = reader["BookingStatus"].ToString();
 
-                    // Chỉ hủy được nếu: trạng thái Pending/Confirmed VÀ còn ít nhất 2 tiếng trước giờ chiếu
                     bool validStatus = status == "Pending" || status == "Confirmed";
                     bool validTime = startTime > DateTime.Now.AddHours(2);
 
@@ -237,7 +304,7 @@ namespace MovieTicket.DAL
             return false;
         }
 
-        // Lấy thông tin vé để in
+        // Lấy thông tin vé để in - CẬP NHẬT: Bao gồm đồ ăn
         public TicketDTO GetTicketInfo(int bookingId)
         {
             TicketDTO ticket = null;
@@ -280,10 +347,11 @@ namespace MovieTicket.DAL
                 }
             }
 
-            // Lấy thông tin ghế
             if (ticket != null)
             {
-                string seatQuery = @"SELECT se.RowLabel, se.SeatNumber
+                // Lấy thông tin ghế và tính tiền vé
+                decimal ticketAmount = 0;
+                string seatQuery = @"SELECT se.RowLabel, se.SeatNumber, bd.Price
                              FROM BOOKING_DETAILS bd
                              INNER JOIN SEATS se ON bd.SeatID = se.SeatID
                              WHERE bd.BookingID = @BookingID
@@ -300,8 +368,18 @@ namespace MovieTicket.DAL
                     while (reader.Read())
                     {
                         seats.Add($"{reader["RowLabel"]}{reader["SeatNumber"]}");
+                        ticketAmount += Convert.ToDecimal(reader["Price"]);
                     }
                     ticket.SeatInfo = string.Join(", ", seats);
+                    ticket.TicketAmount = ticketAmount;
+                }
+
+                // === MỚI: Lấy thông tin đồ ăn ===
+                ticket.FoodItems = GetBookingFoods(bookingId);
+                ticket.FoodAmount = 0;
+                foreach (var food in ticket.FoodItems)
+                {
+                    ticket.FoodAmount += food.TotalPrice;
                 }
             }
 
@@ -354,6 +432,5 @@ namespace MovieTicket.DAL
                 return cmd.ExecuteNonQuery() > 0;
             }
         }
-
     }
 }
