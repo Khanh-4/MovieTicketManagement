@@ -389,7 +389,7 @@ GO
 | **MSSV** | 2380601019 |
 | **Lớp** | 23DTHC1 |
 | **Trường** | Đại học Công nghệ TP.HCM (HUTECH) |
-| **GitHub** | [Khanh-2910](https://github.com/Khanh-2910) |
+| **GitHub** | [Khanh-4](https://github.com/Khanh-4) |
 
 ---
 
