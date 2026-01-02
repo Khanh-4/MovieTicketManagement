@@ -1,4 +1,5 @@
-﻿using MovieTicket.DTO;
+﻿using MovieTicket.BLL;
+using MovieTicket.DTO;
 using System;
 using System.Data.SqlTypes;
 using System.Windows.Forms;
@@ -29,11 +30,17 @@ namespace MovieTicketManagement
                 this.Text = $"Movie Ticket Management System - {currentUser.RoleName}";
             }
             UpdateDateTime();
+
+            // Khởi động timer tự động giải phóng quà hết hạn
+            GiftBLL.StartExpiredReservationTimer();
         }
 
         private void frmMain_FormClosing(object sender, FormClosingEventArgs e)
         {
             timerDateTime.Stop();
+
+            // Dừng timer giải phóng quà
+            GiftBLL.StopExpiredReservationTimer();
         }
 
         private void timerDateTime_Tick(object sender, EventArgs e)
@@ -60,6 +67,7 @@ namespace MovieTicketManagement
                     mnuBaoCao.Visible = true;
                     mnuQLStaff.Visible = true;
                     mnuQLKhuyenMai.Visible = true;
+                    mnuQLQuaTang.Visible = true;  // Admin mới thấy menu Quà tặng
                     break;
 
                 case 2: // Staff
@@ -67,6 +75,7 @@ namespace MovieTicketManagement
                     mnuBanVe.Visible = true;
                     mnuQLStaff.Visible = false;
                     mnuQLKhuyenMai.Visible = false;
+                    mnuQLQuaTang.Visible = false;  // Staff không thấy menu Quà tặng
                     break;
 
                 case 3: // Customer
@@ -138,6 +147,15 @@ namespace MovieTicketManagement
         private void mnuQLKhuyenMai_Click(object sender, EventArgs e)
         {
             frmPromotionManagement frm = new frmPromotionManagement();
+            frm.ShowDialog();
+        }
+
+        // ============================================
+        // MENU QUẢN LÝ QUÀ TẶNG (MỚI - ADMIN ONLY)
+        // ============================================
+        private void mnuQLQuaTang_Click(object sender, EventArgs e)
+        {
+            frmGiftCampaignManagement frm = new frmGiftCampaignManagement(currentUser);
             frm.ShowDialog();
         }
 

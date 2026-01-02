@@ -42,6 +42,7 @@
             mnuQLLichChieu = new ToolStripMenuItem();
             mnuQLDoAn = new ToolStripMenuItem();
             mnuQLKhuyenMai = new ToolStripMenuItem();
+            mnuQLQuaTang = new ToolStripMenuItem();
             mnuBanVe = new ToolStripMenuItem();
             mnuBanVeMoi = new ToolStripMenuItem();
             mnuKiemTraVe = new ToolStripMenuItem();
@@ -108,7 +109,7 @@
             // 
             // mnuQuanLy
             // 
-            mnuQuanLy.DropDownItems.AddRange(new ToolStripItem[] { mnuQLStaff, mnuQLPhim, mnuQLPhong, mnuQLLichChieu, mnuQLDoAn, mnuQLKhuyenMai });
+            mnuQuanLy.DropDownItems.AddRange(new ToolStripItem[] { mnuQLStaff, mnuQLPhim, mnuQLPhong, mnuQLLichChieu, mnuQLDoAn, mnuQLKhuyenMai, mnuQLQuaTang });
             mnuQuanLy.Name = "mnuQuanLy";
             mnuQuanLy.Size = new Size(136, 20);
             mnuQuanLy.Text = "Quản lý (Admin/Staff)";
@@ -154,6 +155,13 @@
             mnuQLKhuyenMai.Size = new Size(215, 22);
             mnuQLKhuyenMai.Text = "Quản lý Khuyến mãi";
             mnuQLKhuyenMai.Click += mnuQLKhuyenMai_Click;
+            // 
+            // mnuQLQuaTang
+            // 
+            mnuQLQuaTang.Name = "mnuQLQuaTang";
+            mnuQLQuaTang.Size = new Size(215, 22);
+            mnuQLQuaTang.Text = "🎁 Quản lý Quà tặng";
+            mnuQLQuaTang.Click += mnuQLQuaTang_Click;
             // 
             // mnuBanVe
             // 
@@ -318,6 +326,7 @@
         private ToolStripMenuItem mnuQLLichChieu;
         private ToolStripMenuItem mnuQLDoAn;
         private ToolStripMenuItem mnuQLKhuyenMai;
+        private ToolStripMenuItem mnuQLQuaTang;
         private ToolStripMenuItem mnuBanVe;
         private ToolStripMenuItem mnuBanVeMoi;
         private ToolStripMenuItem mnuKiemTraVe;

@@ -13,6 +13,7 @@ namespace MovieTicketManagement
         private readonly MovieBLL movieBLL = new MovieBLL();
         private readonly BookingBLL bookingBLL = new BookingBLL();
         private readonly FoodBLL foodBLL = new FoodBLL();
+        private readonly GiftBLL giftBLL = new GiftBLL();
 
         private UserDTO currentUser;
         private List<SeatDTO> allSeats = new List<SeatDTO>();
@@ -20,8 +21,12 @@ namespace MovieTicketManagement
         private List<int> selectedSeatIds = new List<int>();
         private ShowtimeDTO selectedShowtime;
 
-        // === MỚI: Danh sách đồ ăn đã chọn ===
+        // Danh sách đồ ăn đã chọn
         private List<SelectedFoodItem> selectedFoods = new List<SelectedFoodItem>();
+
+        // === MỚI: Biến cho quà tặng ===
+        private GiftCampaignDTO currentGiftCampaign = null;
+        private GiftReservationResult giftReservation = null;
 
         // Constructor nhận thông tin user
         public frmBooking(UserDTO user)
@@ -33,7 +38,7 @@ namespace MovieTicketManagement
         private void frmBooking_Load(object sender, EventArgs e)
         {
             LoadMovies();
-            LoadFoodCategories();  // MỚI
+            LoadFoodCategories();
             ClearBookingInfo();
         }
 
@@ -118,7 +123,7 @@ namespace MovieTicketManagement
             }
         }
 
-        // === MỚI: Load danh mục đồ ăn ===
+        // Load danh mục đồ ăn
         private void LoadFoodCategories()
         {
             try
@@ -143,7 +148,7 @@ namespace MovieTicketManagement
             }
         }
 
-        // === MỚI: Load đồ ăn theo danh mục ===
+        // Load đồ ăn theo danh mục
         private void LoadFoods(int categoryId)
         {
             try
@@ -183,6 +188,49 @@ namespace MovieTicketManagement
             }
         }
 
+        // === MỚI: Kiểm tra chiến dịch quà tặng ===
+        private void CheckGiftCampaign(int movieId)
+        {
+            try
+            {
+                // Reset quà tặng trước đó
+                currentGiftCampaign = null;
+                giftReservation = null;
+                UpdateGiftDisplay();
+
+                // Lấy chiến dịch quà đang hoạt động cho phim này
+                var campaigns = giftBLL.GetActiveCampaigns(movieId);
+
+                if (campaigns.Count > 0)
+                {
+                    // Lấy chiến dịch đầu tiên còn quà
+                    currentGiftCampaign = campaigns.FirstOrDefault(c => c.RemainingGifts > 0);
+
+                    if (currentGiftCampaign != null)
+                    {
+                        // Kiểm tra user có đủ điều kiện không
+                        var (isEligible, message, remaining) = giftBLL.CheckUserGiftEligibility(
+                            currentGiftCampaign.CampaignID, currentUser.UserID);
+
+                        if (isEligible)
+                        {
+                            // Hiển thị thông báo có quà
+                            UpdateGiftDisplay();
+                        }
+                        else
+                        {
+                            // Không đủ điều kiện (đã nhận quà trước đó)
+                            currentGiftCampaign = null;
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Lỗi kiểm tra quà: {ex.Message}");
+            }
+        }
+
         #endregion
 
         #region Seat Selection Events
@@ -194,19 +242,17 @@ namespace MovieTicketManagement
             {
                 MovieDTO movie = cboMovies.SelectedItem as MovieDTO;
 
-                if (movie != null)
-                {
-                    LoadShowtimes(movie.MovieID);
-                    lblMovieValue.Text = movie.Title;
-                }
-
-                // Xóa sơ đồ ghế cũ
+                // Xóa sơ đồ ghế cũ và thông tin TRƯỚC
                 ClearSeats();
                 ClearBookingInfo();
 
                 if (movie != null)
                 {
+                    LoadShowtimes(movie.MovieID);
                     lblMovieValue.Text = movie.Title;
+
+                    // === MỚI: Kiểm tra có chiến dịch quà tặng không (SAU khi clear) ===
+                    CheckGiftCampaign(movie.MovieID);
                 }
             }
         }
@@ -224,10 +270,72 @@ namespace MovieTicketManagement
                     lblRoomValue.Text = selectedShowtime.RoomName;
 
                     LoadSeats(selectedShowtime.RoomID, selectedShowtime.ShowtimeID);
+
+                    // === MỚI: Giữ chỗ quà khi chọn suất chiếu ===
+                    ReserveGiftIfAvailable();
                 }
 
                 selectedSeatIds.Clear();
                 UpdateSelectedSeatsInfo();
+            }
+        }
+
+        // === MỚI: Giữ chỗ quà ===
+        private void ReserveGiftIfAvailable()
+        {
+            if (currentGiftCampaign == null) return;
+
+            try
+            {
+                // Giữ chỗ quà
+                giftReservation = giftBLL.ReserveGift(currentGiftCampaign.CampaignID, currentUser.UserID);
+
+                if (giftReservation.Success)
+                {
+                    UpdateGiftDisplay();
+
+                    // Hiển thị thông báo
+                    MessageBox.Show(
+                        $"🎁 CHÚC MỪNG!\n\n" +
+                        $"Bạn đã được giữ chỗ quà tặng:\n" +
+                        $"► {currentGiftCampaign.GiftName}\n\n" +
+                        $"Vui lòng hoàn tất thanh toán trong {giftReservation.MinutesRemaining} phút\n" +
+                        $"để nhận quà khi đến rạp!",
+                        "Quà tặng",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Information);
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Lỗi giữ chỗ quà: {ex.Message}");
+            }
+        }
+
+        // === MỚI: Cập nhật hiển thị quà tặng ===
+        private void UpdateGiftDisplay()
+        {
+            if (currentGiftCampaign != null && giftReservation != null && giftReservation.Success)
+            {
+                lblGiftInfo.Text = $"🎁 {currentGiftCampaign.GiftName}";
+                lblGiftInfo.ForeColor = Color.Green;
+                lblGiftInfo.Visible = true;
+
+                lblGiftStatus.Text = $"⏱ Còn {giftReservation.MinutesRemaining} phút để thanh toán";
+                lblGiftStatus.ForeColor = Color.OrangeRed;
+                lblGiftStatus.Visible = true;
+            }
+            else if (currentGiftCampaign != null)
+            {
+                lblGiftInfo.Text = $"🎁 Có quà: {currentGiftCampaign.GiftName} (Còn {currentGiftCampaign.RemainingGifts})";
+                lblGiftInfo.ForeColor = Color.Blue;
+                lblGiftInfo.Visible = true;
+                lblGiftStatus.Visible = false;
+            }
+            else
+            {
+                lblGiftInfo.Visible = false;
+                lblGiftStatus.Visible = false;
             }
         }
 
@@ -376,7 +484,7 @@ namespace MovieTicketManagement
             UpdateSelectedSeatsInfo();
         }
 
-        // === MỚI: Xử lý click ghế Couple (chọn cả cặp) ===
+        // Xử lý click ghế Couple (chọn cả cặp)
         private void HandleCoupleSeatClick(SeatDTO clickedSeat)
         {
             // Tìm ghế còn lại trong cặp
@@ -456,7 +564,6 @@ namespace MovieTicketManagement
         /// <summary>
         /// Kiểm tra quy tắc khi chọn ghế mới
         /// </summary>
-        /// <returns>Chuỗi lỗi nếu không hợp lệ, null nếu hợp lệ</returns>
         private string ValidateSeatSelection(SeatDTO newSeat)
         {
             // Nếu chưa có ghế nào được chọn -> OK
@@ -475,7 +582,6 @@ namespace MovieTicketManagement
                 .ToList();
 
             // === QUY TẮC 1: Kiểm tra ghế liên tiếp ===
-            // Nếu đã có ghế được chọn trong hàng này, ghế mới phải liền kề
             if (selectedSeatsInRow.Count > 0)
             {
                 int minSeatNum = selectedSeatsInRow.Min(s => s.SeatNumber);
@@ -490,16 +596,14 @@ namespace MovieTicketManagement
                 }
             }
 
-            // === QUY TẮC 2: Kiểm tra không để trống 1 ghế (Single Gap Rule) ===
-            // Tạo danh sách tạm bao gồm ghế mới
+            // === QUY TẮC 2: Kiểm tra không để trống 1 ghế ===
             var tempSelectedIds = new List<int>(selectedSeatIds) { newSeat.SeatID };
 
-            // Kiểm tra lỗ hổng trong hàng
             string gapError = CheckSingleGapInRow(newSeat.RowNumber, tempSelectedIds);
             if (!string.IsNullOrEmpty(gapError))
                 return gapError;
 
-            return null; // Hợp lệ
+            return null;
         }
 
         /// <summary>
@@ -516,11 +620,9 @@ namespace MovieTicketManagement
             {
                 var currentSeat = seatsInRow[i];
 
-                // Bỏ qua nếu ghế đã được đặt hoặc đang được chọn
                 if (bookedSeatIds.Contains(currentSeat.SeatID) || selectedIds.Contains(currentSeat.SeatID))
                     continue;
 
-                // Kiểm tra ghế bên trái
                 bool hasLeftOccupied = false;
                 if (i > 0)
                 {
@@ -529,11 +631,9 @@ namespace MovieTicketManagement
                 }
                 else
                 {
-                    // Ghế sát tường trái
                     hasLeftOccupied = true;
                 }
 
-                // Kiểm tra ghế bên phải
                 bool hasRightOccupied = false;
                 if (i < seatsInRow.Count - 1)
                 {
@@ -542,11 +642,9 @@ namespace MovieTicketManagement
                 }
                 else
                 {
-                    // Ghế sát tường phải
                     hasRightOccupied = true;
                 }
 
-                // Nếu ghế trống bị kẹp giữa 2 ghế đã chiếm -> Lỗ hổng đơn
                 if (hasLeftOccupied && hasRightOccupied)
                 {
                     return $"Không thể chọn ghế này!\n\n" +
@@ -556,7 +654,7 @@ namespace MovieTicketManagement
                 }
             }
 
-            return null; // Không có lỗ hổng
+            return null;
         }
 
         /// <summary>
@@ -564,14 +662,11 @@ namespace MovieTicketManagement
         /// </summary>
         private bool CanDeselectSeat(SeatDTO seat)
         {
-            // Tạo danh sách tạm không bao gồm ghế muốn bỏ
             var tempSelectedIds = selectedSeatIds.Where(id => id != seat.SeatID).ToList();
 
-            // Nếu không còn ghế nào -> OK
             if (tempSelectedIds.Count == 0)
                 return true;
 
-            // Kiểm tra ghế còn lại trong hàng có liên tiếp không
             var selectedSeatsInRow = allSeats
                 .Where(s => s.RowNumber == seat.RowNumber && tempSelectedIds.Contains(s.SeatID))
                 .OrderBy(s => s.SeatNumber)
@@ -580,7 +675,6 @@ namespace MovieTicketManagement
             if (selectedSeatsInRow.Count <= 1)
                 return true;
 
-            // Kiểm tra có liên tiếp không
             for (int i = 1; i < selectedSeatsInRow.Count; i++)
             {
                 if (selectedSeatsInRow[i].SeatNumber - selectedSeatsInRow[i - 1].SeatNumber != 1)
@@ -616,7 +710,7 @@ namespace MovieTicketManagement
 
         #region Food Selection
 
-        // === MỚI: Khi chọn danh mục đồ ăn ===
+        // Khi chọn danh mục đồ ăn
         private void cboFoodCategory_SelectedIndexChanged(object sender, EventArgs e)
         {
             if (cboFoodCategory.SelectedIndex >= 0)
@@ -629,7 +723,7 @@ namespace MovieTicketManagement
             }
         }
 
-        // === MỚI: Thêm đồ ăn vào giỏ ===
+        // Thêm đồ ăn vào giỏ
         private void btnAddFood_Click(object sender, EventArgs e)
         {
             if (dgvFoods.CurrentRow == null)
@@ -654,12 +748,10 @@ namespace MovieTicketManagement
             var existingItem = selectedFoods.FirstOrDefault(f => f.FoodID == food.FoodID);
             if (existingItem != null)
             {
-                // Cộng thêm số lượng
                 existingItem.Quantity += quantity;
             }
             else
             {
-                // Thêm mới
                 selectedFoods.Add(new SelectedFoodItem
                 {
                     FoodID = food.FoodID,
@@ -673,7 +765,7 @@ namespace MovieTicketManagement
             nudQuantity.Value = 1;
         }
 
-        // === MỚI: Xóa đồ ăn khỏi giỏ ===
+        // Xóa đồ ăn khỏi giỏ
         private void btnRemoveFood_Click(object sender, EventArgs e)
         {
             if (dgvSelectedFoods.CurrentRow == null)
@@ -691,7 +783,7 @@ namespace MovieTicketManagement
             }
         }
 
-        // === MỚI: Refresh giỏ đồ ăn ===
+        // Refresh giỏ đồ ăn
         private void RefreshFoodCart()
         {
             dgvSelectedFoods.DataSource = null;
@@ -737,7 +829,7 @@ namespace MovieTicketManagement
             UpdateTotalAmount();
         }
 
-        // === MỚI: Cập nhật tổng tiền (vé + đồ ăn) ===
+        // Cập nhật tổng tiền (vé + đồ ăn)
         private void UpdateTotalAmount()
         {
             decimal ticketTotal = 0;
@@ -761,7 +853,6 @@ namespace MovieTicketManagement
             lblFoodPrice.Text = string.Format("{0:N0} đ", foodTotal);
             lblTotalPrice.Text = string.Format("{0:N0} đ", ticketTotal + foodTotal);
 
-            // Cập nhật lblPriceValue (nếu còn dùng)
             lblPriceValue.Text = string.Format("{0:N0} VNĐ", ticketTotal + foodTotal);
         }
 
@@ -788,6 +879,11 @@ namespace MovieTicketManagement
             selectedShowtime = null;
             selectedFoods.Clear();
             RefreshFoodCart();
+
+            // Clear quà tặng
+            currentGiftCampaign = null;
+            giftReservation = null;
+            UpdateGiftDisplay();
         }
 
         #endregion
@@ -829,6 +925,13 @@ namespace MovieTicketManagement
             decimal foodTotal = selectedFoods.Sum(f => f.TotalPrice);
             decimal grandTotal = ticketTotal + foodTotal;
 
+            // Thông tin quà tặng
+            string giftInfo = "";
+            if (giftReservation != null && giftReservation.Success && currentGiftCampaign != null)
+            {
+                giftInfo = $"\n🎁 QUÀ TẶNG: {currentGiftCampaign.GiftName}";
+            }
+
             // Xác nhận đặt vé
             string foodList = selectedFoods.Count > 0
                 ? string.Join("\n", selectedFoods.Select(f => $"  - {f.FoodName} x{f.Quantity}: {f.DisplayTotal}"))
@@ -841,7 +944,8 @@ namespace MovieTicketManagement
                                    $"Ghế: {lblSeatsValue.Text}\n" +
                                    $"Tiền vé: {ticketTotal:N0} đ\n\n" +
                                    $"Đồ ăn/thức uống:\n{foodList}\n" +
-                                   $"Tiền đồ ăn: {foodTotal:N0} đ\n\n" +
+                                   $"Tiền đồ ăn: {foodTotal:N0} đ\n" +
+                                   giftInfo + "\n\n" +
                                    $"═══════════════════\n" +
                                    $"TỔNG CỘNG: {grandTotal:N0} đ\n" +
                                    $"═══════════════════\n\n" +
@@ -864,7 +968,22 @@ namespace MovieTicketManagement
 
                     if (bookingResult.success)
                     {
-                        MessageBox.Show(bookingResult.message, "Thành công",
+                        // === MỚI: Xác nhận quà tặng ===
+                        string giftMessage = "";
+                        if (giftReservation != null && giftReservation.Success && giftReservation.ReservationID > 0)
+                        {
+                            var (giftSuccess, giftMsg) = giftBLL.ConfirmGift(
+                                giftReservation.ReservationID,
+                                bookingResult.bookingId);
+
+                            if (giftSuccess)
+                            {
+                                giftMessage = $"\n\n🎁 QUÀ TẶNG: {currentGiftCampaign?.GiftName}\n" +
+                                             "Vui lòng đến quầy để nhận quà khi vào rạp!";
+                            }
+                        }
+
+                        MessageBox.Show(bookingResult.message + giftMessage, "Thành công",
                             MessageBoxButtons.OK, MessageBoxIcon.Information);
 
                         // Hỏi có muốn in vé không
@@ -883,6 +1002,11 @@ namespace MovieTicketManagement
                         selectedFoods.Clear();
                         RefreshFoodCart();
                         UpdateSelectedSeatsInfo();
+
+                        // Reset quà tặng
+                        currentGiftCampaign = null;
+                        giftReservation = null;
+                        UpdateGiftDisplay();
                     }
                     else
                     {
@@ -922,6 +1046,16 @@ namespace MovieTicketManagement
         // Nút Đóng
         private void btnClose_Click(object sender, EventArgs e)
         {
+            // Hủy reservation quà nếu có
+            if (giftReservation != null && giftReservation.Success && giftReservation.ReservationID > 0)
+            {
+                try
+                {
+                    giftBLL.CancelGiftReservation(giftReservation.ReservationID, "Người dùng đóng form đặt vé", true);
+                }
+                catch { }
+            }
+
             this.Close();
         }
 

@@ -72,6 +72,10 @@
             dgvSelectedFoods = new DataGridView();
             btnRemoveFood = new Button();
 
+            // === MỚI: Quà tặng ===
+            lblGiftInfo = new Label();
+            lblGiftStatus = new Label();
+
             // Buttons
             btnBooking = new Button();
             btnClear = new Button();
@@ -375,6 +379,19 @@
             grpFood.Controls.Add(dgvSelectedFoods);
             grpFood.Controls.Add(btnRemoveFood);
 
+            // ==================== QUÀ TẶNG (MỚI) ====================
+            lblGiftInfo.AutoSize = true;
+            lblGiftInfo.Font = new Font("Arial", 10F, FontStyle.Bold);
+            lblGiftInfo.ForeColor = Color.Green;
+            lblGiftInfo.Location = new Point(920, 55);
+            lblGiftInfo.Visible = false;
+
+            lblGiftStatus.AutoSize = true;
+            lblGiftStatus.Font = new Font("Arial", 9F, FontStyle.Italic);
+            lblGiftStatus.ForeColor = Color.OrangeRed;
+            lblGiftStatus.Location = new Point(920, 78);
+            lblGiftStatus.Visible = false;
+
             // ==================== BUTTONS ====================
             btnBooking.Font = new Font("Arial", 11F, FontStyle.Bold);
             btnBooking.Location = new Point(630, 560);
@@ -426,6 +443,8 @@
             Controls.Add(lblTextCouple);
             Controls.Add(grpBookingInfo);
             Controls.Add(grpFood);
+            Controls.Add(lblGiftInfo);
+            Controls.Add(lblGiftStatus);
             Controls.Add(btnBooking);
             Controls.Add(btnClear);
             Controls.Add(btnClose);
@@ -504,6 +523,10 @@
         private Label lblSelectedFoods;
         private DataGridView dgvSelectedFoods;
         private Button btnRemoveFood;
+
+        // === MỚI: Quà tặng ===
+        private Label lblGiftInfo;
+        private Label lblGiftStatus;
 
         // Buttons
         private Button btnBooking;

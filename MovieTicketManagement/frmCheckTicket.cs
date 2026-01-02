@@ -10,11 +10,23 @@ namespace MovieTicketManagement
     public partial class frmCheckTicket : Form
     {
         private BookingBLL bookingBLL = new BookingBLL();
+        private GiftBLL giftBLL = new GiftBLL();
         private BookingDTO currentBooking = null;
+        private BookingGiftInfoDTO currentGiftInfo = null;
+
+        // Thêm biến để lưu StaffID (truyền từ frmMain)
+        private int currentStaffId = 0;
 
         public frmCheckTicket()
         {
             InitializeComponent();
+        }
+
+        // Constructor mới nhận StaffID
+        public frmCheckTicket(int staffId)
+        {
+            InitializeComponent();
+            currentStaffId = staffId;
         }
 
         private void frmCheckTicket_Load(object sender, EventArgs e)
@@ -95,6 +107,63 @@ namespace MovieTicketManagement
             {
                 lblSeatsValue.Text = "(Không có thông tin)";
             }
+
+            // === MỚI: Kiểm tra quà tặng ===
+            CheckGiftInfo(booking.BookingID);
+        }
+
+        // === MỚI: Kiểm tra thông tin quà tặng ===
+        private void CheckGiftInfo(int bookingId)
+        {
+            try
+            {
+                currentGiftInfo = giftBLL.GetBookingGiftInfo(bookingId);
+
+                if (currentGiftInfo != null && currentGiftInfo.HasGift)
+                {
+                    lblGiftValue.Visible = true;
+                    btnGiveGift.Visible = true;
+
+                    if (currentGiftInfo.GiftStatus == "Confirmed")
+                    {
+                        lblGiftValue.Text = $"🎁 {currentGiftInfo.GiftName} - Chờ nhận";
+                        lblGiftValue.ForeColor = Color.Green;
+                        btnGiveGift.Enabled = true;
+                        btnGiveGift.Text = "🎁 Phát quà";
+                        btnGiveGift.BackColor = Color.FromArgb(255, 193, 7); // Vàng
+                    }
+                    else if (currentGiftInfo.GiftStatus == "Received")
+                    {
+                        lblGiftValue.Text = $"🎁 {currentGiftInfo.GiftName} - ĐÃ NHẬN";
+                        lblGiftValue.ForeColor = Color.Gray;
+                        btnGiveGift.Enabled = false;
+                        btnGiveGift.Text = "✓ Đã phát";
+                        btnGiveGift.BackColor = Color.LightGray;
+                    }
+                    else
+                    {
+                        lblGiftValue.Text = $"🎁 {currentGiftInfo.GiftStatusText}";
+                        lblGiftValue.ForeColor = Color.Orange;
+                        btnGiveGift.Enabled = false;
+                        btnGiveGift.BackColor = Color.LightGray;
+                    }
+                }
+                else
+                {
+                    lblGiftValue.Text = "(Không có quà tặng)";
+                    lblGiftValue.ForeColor = Color.Gray;
+                    lblGiftValue.Visible = true;
+                    btnGiveGift.Visible = false;
+                }
+            }
+            catch (Exception ex)
+            {
+                lblGiftValue.Text = "(Lỗi kiểm tra quà)";
+                lblGiftValue.ForeColor = Color.Red;
+                lblGiftValue.Visible = true;
+                btnGiveGift.Visible = false;
+                System.Diagnostics.Debug.WriteLine($"Lỗi kiểm tra quà: {ex.Message}");
+            }
         }
 
         // Kiểm tra trạng thái vé
@@ -159,11 +228,19 @@ namespace MovieTicketManagement
                 return;
             }
 
+            // Kiểm tra xem có quà chưa nhận không
+            string giftReminder = "";
+            if (currentGiftInfo != null && currentGiftInfo.HasGift && currentGiftInfo.GiftStatus == "Confirmed")
+            {
+                giftReminder = $"\n\n🎁 LƯU Ý: Khách có quà tặng [{currentGiftInfo.GiftName}] chưa nhận!";
+            }
+
             DialogResult result = MessageBox.Show(
                 $"Xác nhận cho khách vào rạp?\n\n" +
                 $"Mã vé: {currentBooking.BookingCode}\n" +
                 $"Khách hàng: {currentBooking.CustomerName}\n" +
-                $"Ghế: {lblSeatsValue.Text}",
+                $"Ghế: {lblSeatsValue.Text}" +
+                giftReminder,
                 "Xác nhận",
                 MessageBoxButtons.YesNo,
                 MessageBoxIcon.Question);
@@ -202,6 +279,76 @@ namespace MovieTicketManagement
             }
         }
 
+        // === MỚI: Phát quà ===
+        private void btnGiveGift_Click(object sender, EventArgs e)
+        {
+            if (currentBooking == null || currentGiftInfo == null)
+            {
+                MessageBox.Show("Vui lòng kiểm tra vé trước!", "Thông báo",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            if (!currentGiftInfo.CanReceive)
+            {
+                MessageBox.Show("Vé này không có quà để phát hoặc đã phát rồi!", "Thông báo",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            DialogResult result = MessageBox.Show(
+                $"Xác nhận phát quà?\n\n" +
+                $"🎁 Quà tặng: {currentGiftInfo.GiftName}\n" +
+                $"👤 Khách hàng: {currentBooking.CustomerName}\n" +
+                $"🎫 Mã vé: {currentBooking.BookingCode}",
+                "Xác nhận phát quà",
+                MessageBoxButtons.YesNo,
+                MessageBoxIcon.Question);
+
+            if (result == DialogResult.Yes)
+            {
+                try
+                {
+                    // Sử dụng StaffID được truyền vào, nếu không có thì dùng mặc định
+                    int staffId = currentStaffId > 0 ? currentStaffId : 2; // 2 = staff1
+
+                    var (success, message, giftName) = giftBLL.ReceiveGift(currentBooking.BookingID, staffId);
+
+                    if (success)
+                    {
+                        MessageBox.Show(
+                            $"✅ PHÁT QUÀ THÀNH CÔNG!\n\n" +
+                            $"🎁 Quà: {giftName}\n" +
+                            $"👤 Khách hàng: {currentBooking.CustomerName}\n\n" +
+                            $"Vui lòng đưa quà cho khách!",
+                            "Thành công",
+                            MessageBoxButtons.OK,
+                            MessageBoxIcon.Information);
+
+                        // Cập nhật hiển thị
+                        lblGiftValue.Text = $"🎁 {giftName} - ĐÃ NHẬN";
+                        lblGiftValue.ForeColor = Color.Gray;
+                        btnGiveGift.Enabled = false;
+                        btnGiveGift.Text = "✓ Đã phát";
+                        btnGiveGift.BackColor = Color.LightGray;
+
+                        // Cập nhật currentGiftInfo
+                        currentGiftInfo = giftBLL.GetBookingGiftInfo(currentBooking.BookingID);
+                    }
+                    else
+                    {
+                        MessageBox.Show(message, "Lỗi",
+                            MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Lỗi: {ex.Message}", "Lỗi",
+                        MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            }
+        }
+
         // Xóa thông tin hiển thị
         private void ClearInfo()
         {
@@ -214,6 +361,13 @@ namespace MovieTicketManagement
             lblStatusValue.Text = "";
             btnConfirm.Enabled = false;
             currentBooking = null;
+
+            // === MỚI: Clear quà tặng ===
+            currentGiftInfo = null;
+            lblGiftValue.Text = "";
+            lblGiftValue.Visible = false;
+            btnGiveGift.Visible = false;
+            btnGiveGift.Enabled = false;
         }
 
         // Đóng form
